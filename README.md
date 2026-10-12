@@ -2,6 +2,18 @@
 
 A mobile-friendly English sales application for leno mesh bags sold by bundle. Includes all sixteen sizes, customers, manually entered prices in SAR, multiple items per bill, Paid/Unpaid status, dated sales, corrections, deletion confirmation, Excel daily exports, and individual/daily printing.
 
+## Publish a demo without installing anything
+
+1. Open https://vercel.com/new and sign in with GitHub.
+2. Allow Vercel access to `omer2626/demo_app` when GitHub asks. Select only this repository if you prefer.
+3. Find `demo_app` in the import list and click **Import**.
+4. Leave the project settings as detected: Vite, `npm run build`, output `dist`. Do not add Supabase variables yet for the sample demo.
+5. Click **Deploy**, then **Visit** once the deployment completes. Copy the public website address.
+
+The first deployment shows labelled sample data and disables real saving. For real sales, complete the database setup below and add both public Supabase variables in Vercel's project environment settings, then redeploy. Never enter a service-role key or database password there. Backups and database access checks are still required before production use.
+
+Vercel connects to the existing GitHub repository. Future pushes to `main` trigger a new website deployment automatically. Connecting/publishing requires the repository owner's Vercel authorization and has not been completed from this workspace.
+
 ## Run locally
 
 Requires Node.js 22.12+ (tested with 24.19).
