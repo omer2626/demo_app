@@ -61,3 +61,7 @@ Live integration and authorization tests require an actual Supabase project; uni
 In your existing Supabase project, open SQL Editor and run **supabase/migrations/002_editable_bag_sizes.sql** once. Do not rerun the full schema on an existing database. This adds an owner-only catalog, seeds existing sizes, and updates the bill-saving function to accept custom sizes. Existing customers, bills and line items are retained. Renaming a catalog entry does not rewrite historical sales. The app continues to offer original sizes for bill entry until migration is applied and displays a migration message for bag-size management.
 
 Dark mode is controlled by the moon/sun button and remembered on this device. This browser preference does not store sales data.
+
+## Enable deletion of bag sizes
+
+After migration 002, run `supabase/migrations/003_delete_bag_sizes.sql` once in Supabase SQL Editor. It enables owner-only catalog deletion and prevents default sizes returning when the last size is deleted. Existing bills and sale items retain their recorded sizes and can still be edited. New sales cannot use a deleted size. The Delete button asks for confirmation, and failed deletions leave the size visible.

@@ -30,3 +30,5 @@
 [data-theme='dark'] .connection{color:#acc7b4}
 @media(max-width:700px){.header-tools{gap:8px}.theme-toggle{padding:6px}.brand{font-size:18px}.product-actions{flex-wrap:wrap}.auth-theme{top:12px;right:12px}.auth-card .brand{font-size:19px}}
 @media print{[data-theme='dark'] body{background:white;color:black}[data-theme='dark'] .print-view th,[data-theme='dark'] .print-view td{background:white;color:black;border-color:#ddd}}
+
+.product-actions{flex-wrap:wrap}.delete-size{font-size:11px;padding:8px 6px;color:#a14c40}.delete-size:hover:not(:disabled){background:#fff0ec}[data-theme='dark'] .delete-size{color:#efa999}[data-theme='dark'] .delete-size:hover:not(:disabled){background:#482b26}
