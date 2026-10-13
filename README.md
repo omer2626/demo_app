@@ -1,4 +1,4 @@
-# Mesh & Co. sales
+# Tawakkalna Polymers sales
 
 A mobile-friendly English sales application for leno mesh bags sold by bundle. Includes all sixteen sizes, customers, manually entered prices in SAR, multiple items per bill, Paid/Unpaid status, dated sales, corrections, deletion confirmation, Excel daily exports, and individual/daily printing.
 
@@ -55,3 +55,9 @@ Choose a Supabase plan with daily managed backups and an appropriate retention p
 Sales records only: no partial payments, balances, inventory, VAT calculations, or ZATCA compliance. Printed documents are not Saudi tax invoices. Sample preview is for interface review only. Customer phone numbers are optional. Currency is SAR, quantities are whole bundles, prices have at most two decimals.
 
 Live integration and authorization tests require an actual Supabase project; unit tests/build alone do not validate the deployed database. Before production verify that a signed-out request cannot read records and that a second test user cannot read or change the owner's bills. Do not share credentials in chat.
+
+## Upgrade an existing database for editable bag sizes
+
+In your existing Supabase project, open SQL Editor and run **supabase/migrations/002_editable_bag_sizes.sql** once. Do not rerun the full schema on an existing database. This adds an owner-only catalog, seeds existing sizes, and updates the bill-saving function to accept custom sizes. Existing customers, bills and line items are retained. Renaming a catalog entry does not rewrite historical sales. The app continues to offer original sizes for bill entry until migration is applied and displays a migration message for bag-size management.
+
+Dark mode is controlled by the moon/sun button and remembered on this device. This browser preference does not store sales data.
