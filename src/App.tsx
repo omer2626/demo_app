@@ -1136,27 +1136,6 @@ export default function App() {
                     </strong>
                   </div>
                 </section>
-                <div className="collection-summary">
-                  <span>
-                    Collected on {date}
-                    <strong>
-                      SAR {money(sumMoney(collections.map((p) => p.amount)))}
-                    </strong>
-                    <small>
-                      Includes receipts retained for deleted bills and older
-                      bills; excludes imported payments with unknown dates.
-                    </small>
-                  </span>
-                  <span>
-                    Remaining on selected day’s sales
-                    <strong>
-                      SAR {money(sumMoney(dayBills.map(remaining)))}
-                    </strong>
-                    <small>
-                      Current unpaid balances for the selected sale date.
-                    </small>
-                  </span>
-                </div>
                 <div className="bottom-note">
                   <Check size={16} />
                   {configured
