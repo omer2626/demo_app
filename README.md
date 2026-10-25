@@ -71,15 +71,21 @@ After migration 002, run `supabase/migrations/003_delete_bag_sizes.sql` once in 
 After migrations 002 and 003 have been applied, run **supabase/migrations/004_stock_and_payments.sql** once in Supabase SQL Editor. Do not rerun the full schema on an existing database. Back up the database first. Deployments and this file do not apply SQL to your live project automatically.
 
 1. In the app open **Stock** and use **Set opening stock** for each size, entering the physical bundles available now (zero is valid). New sizes also need opening stock before their first sale.
-2. Record deliveries with **Add / correct stock → New delivery**. Use **Stock correction** for signed changes with a required reason. Stock never goes below zero.
+2. Record deliveries with **Add / correct stock → New delivery**. Use **Stock correction** for signed changes with an optional note. Stock never goes below zero.
 3. New sales deduct stock atomically; edits deduct/return only the difference and deleted sales return their tracked bundles. Repeated sizes on one bill are aggregated. Old bills are marked historical and never deduct from the new physical opening count, even when edited/deleted.
 4. For a new sale select **Paid in full**, **Unpaid** or **Partial payment**. Open **Payments** on any bill to record later receipts or inspect history. **Unpaid bills** includes balances across all dates. Overpayments and edits below money already received are rejected.
 5. Previously paid bills receive a labelled imported payment with no assumed collection date; previously unpaid bills start with zero received. Record any previously untracked partial receipts with their actual dates.
 6. **Void** corrects an erroneous payment, retaining its record/timestamp and restoring the balance. It is not a refund operation. To delete a sale with payments, void those payments first. Deleted sales are retained with an `is_deleted` flag for audit; stock and payment history are preserved.
 7. Excel contains **Daily sales** (bill totals, received-to-date and remaining balance, counted once per bill) and **Collections** (active receipts on the selected date, including payments for older bills). Imported payments of unknown date are excluded from daily collections. Voided payments are excluded; their original payment dates' totals change accordingly. Printing also includes received/remaining totals.
 
-Catalog deletion now archives the size rather than removing its database row; stocked sizes cannot be deleted until stock is corrected to zero with a reason. If a later sale correction/deletion returns bundles to an archived size, it becomes visible again. Re-adding a previously archived name reuses its stable identity. Do not directly edit `stock`, totals, payments, or `is_deleted` in Table Editor. Use the app's RPC-backed controls to preserve ledger consistency.
+Catalog deletion now archives the size rather than removing its database row; stocked sizes cannot be deleted until stock is corrected to zero with an optional note. If a later sale correction/deletion returns bundles to an archived size, it becomes visible again. Re-adding a previously archived name reuses its stable identity. Do not directly edit `stock`, totals, payments, or `is_deleted` in Table Editor. Use the app's RPC-backed controls to preserve ledger consistency.
 
 Success messages dismiss after four seconds; errors remain until resolved/dismissed by subsequent actions. Sales/payments/delivery requests include retry identifiers to prevent duplicate effects. Complete sales/collection reports are loaded in pages; stock history shows the latest 100 movements, with all movements retained in PostgreSQL.
 
 Run `npm test` for calculation, pagination and embedded PostgreSQL migration/transaction tests. Tests create isolated data and never connect to production Supabase. Live deployment saving still needs verification after applying migration 004.
+
+## Simpler stock and payment controls
+
+After migration 004, run **supabase/migrations/005_simple_stock_and_payments.sql** once. Stock corrections no longer require a reason. In **Stock**, **Delete stock** asks for confirmation and sets available bundles to zero, retaining the size, stock history and all sales/payment records. To remove the bag size as well, use Delete on the Bag sizes page afterward.
+
+On a bill, use **Receive payment → Full remaining amount → Save payment** when the customer pays the rest. Enter a smaller amount to record another partial payment. Fully paid bills show **Payment history** instead. The sales table has a separate **Remaining (SAR)** column; fully paid bills display **0.00**.

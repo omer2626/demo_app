@@ -16,10 +16,14 @@ export function StockPanel({
   catalog,
   movements,
   onAdjust,
+  onClear,
+  busy,
 }: {
   catalog: BagSize[];
   movements: Movement[];
   onAdjust: (p: BagSize) => void;
+  onClear: (p: BagSize) => void;
+  busy: boolean;
 }) {
   return (
     <>
@@ -59,12 +63,28 @@ export function StockPanel({
                   <td>{p.name.replace("x", " × ")}</td>
                   <td>{p.stock_initialized ? p.stock : "Not set"}</td>
                   <td>
-                    <button className="secondary" onClick={() => onAdjust(p)}>
-                      <Plus size={15} />
-                      {p.stock_initialized
-                        ? "Add / correct stock"
-                        : "Set opening stock"}
-                    </button>
+                    <div className="stock-actions">
+                      <button
+                        className="secondary"
+                        disabled={busy}
+                        onClick={() => onAdjust(p)}
+                      >
+                        <Plus size={15} />
+                        {p.stock_initialized
+                          ? "Add / correct stock"
+                          : "Set opening stock"}
+                      </button>
+                      <button
+                        className="delete-size"
+                        disabled={
+                          busy || !configured || !(p.stock && p.stock > 0)
+                        }
+                        aria-label={`Delete stock for ${p.name}`}
+                        onClick={() => onClear(p)}
+                      >
+                        Delete stock
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -227,9 +247,8 @@ export function StockDialog({
             </label>
           </div>
           <label>
-            {kind === "correction" ? "Reason (required)" : "Note (optional)"}
+            Note (optional)
             <input
-              required={kind === "correction"}
               maxLength={500}
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -369,7 +388,10 @@ export function PaymentDialog({
       >
         <div className="modal-heading">
           <div>
-            <h2 id="payment-title">Payments · #{bill.bill_number}</h2>
+            <h2 id="payment-title">
+              {remaining(bill) > 0 ? "Receive payment" : "Payment history"} · #
+              {bill.bill_number}
+            </h2>
             <p className="form-help">{bill.customer_name}</p>
           </div>
           <button aria-label="Close payments" disabled={busy} onClick={onClose}>
@@ -389,6 +411,18 @@ export function PaymentDialog({
         </div>
         {remaining(bill) > 0 && (
           <form onSubmit={(e) => void save(e)}>
+            <p className="form-help">
+              If the customer paid the rest, select Full remaining amount, then
+              Save payment. For a smaller payment, enter only what you received.
+            </p>
+            <button
+              className="secondary settle-payment"
+              type="button"
+              disabled={busy}
+              onClick={() => setAmount(String(remaining(bill)))}
+            >
+              Full remaining amount · SAR {money(remaining(bill))}
+            </button>
             <div className="form-grid">
               <label>
                 Amount received (SAR)
@@ -424,7 +458,7 @@ export function PaymentDialog({
               className="primary"
               disabled={busy || !configured || !loaded}
             >
-              {busy ? "Saving…" : "Add payment"}
+              {busy ? "Saving…" : "Save payment"}
             </button>
           </form>
         )}

@@ -86,6 +86,12 @@ beforeAll(async () => {
   await db.exec(
     readFileSync("supabase/migrations/004_stock_and_payments.sql", "utf8"),
   );
+  await db.exec(
+    readFileSync(
+      "supabase/migrations/005_simple_stock_and_payments.sql",
+      "utf8",
+    ),
+  );
   await login();
 }, 30000);
 afterAll(async () => {
@@ -240,12 +246,15 @@ describe("Warehouse and payment transactions", () => {
     await expect(
       query("select public.archive_bag_size($1)", [size]),
     ).rejects.toThrow(/still has stock/);
-    await expect(
-      query(
-        "select public.adjust_stock($1,-1,'correction','2026-10-26','',$2)",
-        [size, uuid()],
-      ),
-    ).rejects.toThrow(/reason/);
+    await query(
+      "select public.adjust_stock($1,-1,'correction','2026-10-26','',$2)",
+      [size, uuid()],
+    );
+    expect(await stock()).toBe(109);
+    await query(
+      "select public.adjust_stock($1,1,'correction','2026-10-26','',$2)",
+      [size, uuid()],
+    );
     expect(await stock()).toBe(110);
   });
   it("uses stable IDs through renames, preserves printed sizes and restores edited/deleted sale stock", async () => {
@@ -397,6 +406,45 @@ describe("Warehouse and payment transactions", () => {
         )
       ).length,
     ).toBeGreaterThan(0);
+  });
+  it("clears stock without erasing sizes or bills, and retries cannot clear a later delivery", async () => {
+    await query(
+      "select public.adjust_stock($1,7,'delivery','2026-10-26','',$2)",
+      [size, uuid()],
+    );
+    const billsBefore = (await query("select * from public.bills")).length;
+    const request = uuid();
+    await login(other);
+    await expect(
+      query("select public.clear_stock($1,$2)", [size, uuid()]),
+    ).rejects.toThrow(/not found/);
+    await login();
+    await query("select public.clear_stock($1,$2)", [size, request]);
+    expect(await stock()).toBe(0);
+    expect(
+      (await query("select * from public.bag_sizes where id=$1", [size]))
+        .length,
+    ).toBe(1);
+    expect((await query("select * from public.bills")).length).toBe(
+      billsBefore,
+    );
+    const movement = (
+      await query("select * from public.stock_movements where request_id=$1", [
+        request,
+      ])
+    )[0];
+    expect(movement.delta).toBe(-7);
+    expect(movement.note).toBe("Stock cleared");
+    await query(
+      "select public.adjust_stock($1,5,'delivery','2026-10-26','',$2)",
+      [size, uuid()],
+    );
+    await query("select public.clear_stock($1,$2)", [size, request]);
+    expect(await stock()).toBe(5);
+    await query("select public.clear_stock($1,$2)", [size, uuid()]);
+    expect(await stock()).toBe(0);
+    await query("select public.initialize_bag_sizes()");
+    expect(await stock()).toBe(0);
   });
 });
 

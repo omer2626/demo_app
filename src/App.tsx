@@ -302,6 +302,31 @@ export default function App() {
     setSizeName(size?.name ?? "");
     setModal("size");
   }
+  async function clearStock(product: BagSize) {
+    if (!db || busy) return;
+    if (
+      !window.confirm(
+        `Delete all ${product.stock} bundles of stock for ${product.name}? Available stock will become zero. The bag size and existing bills will remain.`,
+      )
+    )
+      return;
+    setBusy(true);
+    setError("");
+    try {
+      const { error } = await db.rpc("clear_stock", {
+        p_size_id: product.id,
+        p_request_id: crypto.randomUUID(),
+      });
+      if (error) throw error;
+      operationSaved("Stock deleted. Available bundles are now zero.");
+    } catch (e) {
+      setError(
+        `Could not delete stock. If this is your first time using this button, run database update 005. ${(e as Error).message}`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   async function deleteSize(product: BagSize) {
     if (!db || !session || busy) return;
     if (
@@ -855,6 +880,8 @@ export default function App() {
                 catalog={catalog}
                 movements={movements}
                 onAdjust={setStockTarget}
+                onClear={(product) => void clearStock(product)}
+                busy={busy}
               />
             )}
             {(tab === "sales" || tab === "balances") && (
@@ -964,7 +991,8 @@ export default function App() {
                           <th>BILL / CUSTOMER</th>
                           <th>ITEMS</th>
                           <th>BUNDLES</th>
-                          <th>AMOUNT / REMAINING</th>
+                          <th>BILL TOTAL (SAR)</th>
+                          <th>REMAINING (SAR)</th>
                           <th>STATUS</th>
                           <th></th>
                         </tr>
@@ -1002,9 +1030,11 @@ export default function App() {
                             </td>
                             <td className="amount">
                               {money(b.total)} <small>SAR</small>
-                              <small className="more">
-                                Remaining: {money(remaining(b))}
-                              </small>
+                            </td>
+                            <td
+                              className={`remaining-amount ${remaining(b) === 0 ? "is-paid" : ""}`}
+                            >
+                              {money(remaining(b))}
                             </td>
                             <td>
                               <span
@@ -1017,10 +1047,16 @@ export default function App() {
                             <td>
                               <div className="row-actions">
                                 <button
-                                  title="Payments and history"
+                                  title={
+                                    remaining(b) > 0
+                                      ? "Receive payment"
+                                      : "Payment history"
+                                  }
                                   onClick={() => setPaymentTarget(b)}
                                 >
-                                  Payments
+                                  {remaining(b) > 0
+                                    ? "Receive payment"
+                                    : "Payment history"}
                                 </button>
                                 <button
                                   title="Edit bill"
@@ -1408,7 +1444,8 @@ export default function App() {
                       </strong>
                     </span>
                     <p className="form-help">
-                      Record further payments using the Payments button.{" "}
+                      To record more money, close this form and click Receive
+                      payment on the bill.{" "}
                       {!editing.stock_tracked &&
                         "This historical bill does not change opening stock."}
                     </p>
