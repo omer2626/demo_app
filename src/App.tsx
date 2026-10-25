@@ -192,6 +192,7 @@ export default function App() {
           db!
             .from("customers")
             .select("id,name,phone")
+            .eq("is_archived", false)
             .order("name")
             .order("id")
             .range(from, to),
@@ -254,7 +255,7 @@ export default function App() {
       if (request !== loadRequest.current) return;
       setOperationsReady(false);
       setError(
-        `Unable to load stock and payments. If you have not applied the update, run 004_stock_and_payments.sql in Supabase first. ${(e as Error).message}`,
+        `Unable to load stock and payments. If you have not applied the update, run the latest database updates through 006 in Supabase first. ${(e as Error).message}`,
       );
     } finally {
       if (request === loadRequest.current) setLoading(false);
@@ -520,11 +521,34 @@ export default function App() {
       setBusy(false);
     }
   }
+  async function deleteCustomer(record: Customer) {
+    if (!db || busy) return;
+    if (
+      !window.confirm(
+        `Delete ${record.name} from your customers? Their past bills, payments and remaining balances will be kept. You can still receive payment on their existing bills.`,
+      )
+    )
+      return;
+    setBusy(true);
+    setError("");
+    try {
+      const { error } = await db.rpc("archive_customer", { p_id: record.id });
+      if (error) throw error;
+      setCustomers((current) => current.filter((c) => c.id !== record.id));
+      setNotice("Customer deleted. Their past bills and payments are kept.");
+    } catch (e) {
+      setError(
+        `Could not delete customer. Check that database update 006 has been applied. ${(e as Error).message}`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   async function deleteBill(b: Bill) {
     if (
       !db ||
       !window.confirm(
-        `Delete bill #${b.bill_number} for ${b.customer_name}? This cannot be undone.`,
+        `Delete bill #${b.bill_number} for ${b.customer_name} from active sales? Tracked bundles will return to stock. Recorded payments will remain in history; this does not record a refund.`,
       )
     )
       return;
@@ -1119,8 +1143,8 @@ export default function App() {
                       SAR {money(sumMoney(collections.map((p) => p.amount)))}
                     </strong>
                     <small>
-                      Includes payments for older bills; excludes imported
-                      payments with unknown dates.
+                      Includes receipts retained for deleted bills and older
+                      bills; excludes imported payments with unknown dates.
                     </small>
                   </span>
                   <span>
@@ -1164,7 +1188,18 @@ export default function App() {
                     )
                     .map((c) => (
                       <div className="customer-card" key={c.id}>
-                        <span className="customer-avatar">{c.name[0]}</span>
+                        <div className="customer-card-heading">
+                          <span className="customer-avatar">{c.name[0]}</span>
+                          <button
+                            className="delete-size"
+                            aria-label={`Delete customer ${c.name}`}
+                            title="Delete customer"
+                            disabled={!configured || busy}
+                            onClick={() => void deleteCustomer(c)}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
                         <h3>{c.name}</h3>
                         <p>{c.phone || "No phone added"}</p>
                         <button
@@ -1326,6 +1361,14 @@ export default function App() {
                       onChange={(e) => setCustomer(e.target.value)}
                     >
                       <option value="">Select a customer</option>
+                      {editing &&
+                        !customers.some(
+                          (c) => c.id === editing.customer_id,
+                        ) && (
+                          <option value={editing.customer_id}>
+                            {editing.customer_name} (deleted customer)
+                          </option>
+                        )}
                       {customers.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}

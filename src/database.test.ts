@@ -92,6 +92,12 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      "supabase/migrations/006_bill_and_customer_deletion.sql",
+      "utf8",
+    ),
+  );
   await login();
 }, 30000);
 afterAll(async () => {
@@ -203,9 +209,18 @@ describe("Warehouse and payment transactions", () => {
       uuid(),
     ]);
     expect((await state()).paid).toBe(true);
-    await expect(
-      query("select public.delete_bill_v2($1)", [bill]),
-    ).rejects.toThrow(/Void/);
+    await query("select public.delete_bill_v2($1)", [bill]);
+    expect((await state()).is_deleted).toBe(true);
+    expect(Number((await state()).amount_received)).toBe(80);
+    expect(
+      (
+        await query(
+          "select * from public.payments where bill_id=$1 and not voided",
+          [bill],
+        )
+      ).length,
+    ).toBe(3);
+    expect(await stock()).toBe(100);
     for (const p of await query(
       "select id from public.payments where bill_id=$1",
       [bill],
@@ -445,6 +460,57 @@ describe("Warehouse and payment transactions", () => {
     expect(await stock()).toBe(0);
     await query("select public.initialize_bag_sizes()");
     expect(await stock()).toBe(0);
+  });
+  it("deletes partially-paid bills without voiding cash receipts and restores stock only once", async () => {
+    const before = await stock();
+    await query(
+      "select public.adjust_stock($1,5,'delivery','2026-10-26','',$2)",
+      [size, uuid()],
+    );
+    const id = await save(null, 2, 5);
+    await query("select public.delete_bill_v2($1)", [id]);
+    await query("select public.delete_bill_v2($1)", [id]);
+    expect(await stock()).toBe(before + 5);
+    const row = await state(id);
+    expect(row.is_deleted).toBe(true);
+    expect(Number(row.amount_received)).toBe(5);
+    const receipts = await query(
+      "select * from public.payments where bill_id=$1 and not voided",
+      [id],
+    );
+    expect(receipts.length).toBe(1);
+    expect(Number(receipts[0].amount)).toBe(5);
+  });
+  it("deletes a customer from selection but preserves bills and permits old-bill edits and collection", async () => {
+    const before = (
+      await query("select * from public.bills where customer_id=$1", [customer])
+    ).length;
+    await login(other);
+    await expect(
+      query("select public.archive_customer($1)", [customer]),
+    ).rejects.toThrow(/not found/);
+    await login();
+    await query("select public.archive_customer($1)", [customer]);
+    await query("select public.archive_customer($1)", [customer]);
+    expect(
+      (await query("select * from public.customers where not is_archived"))
+        .length,
+    ).toBe(0);
+    expect(
+      (
+        await query("select * from public.bills where customer_id=$1", [
+          customer,
+        ])
+      ).length,
+    ).toBe(before);
+    await expect(save(null, 1)).rejects.toThrow(/Customer not found/);
+    await save(oldBill, 6);
+    await query("select public.record_payment($1,10,'2026-10-26','',$2)", [
+      oldBill,
+      uuid(),
+    ]);
+    expect(Number((await state(oldBill)).amount_received)).toBe(10);
+    expect((await state(oldBill)).customer_name).toBe("Test farm");
   });
 });
 
